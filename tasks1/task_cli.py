@@ -87,6 +87,28 @@ def search_tasks(tasks: list, keyword: str):
     
     print_header(f"Search Results for '{keyword}'")
     list_tasks(results)
+    
+def mark_done(tasks: list, task_id: int):
+    for task in tasks:
+        if task['id'] == task_id:
+            if task['status'] == 'DONE':
+                print(f"\n[INFO] Task ID {task_id} is already marked DONE.")
+                return
+            task['status'] = 'DONE'
+            save_tasks(tasks)
+            print(f"\n[SUCCESS] Task ID {task_id} marked as DONE. Well done!")
+            return
+    print(f"\n[ERROR] Task with ID {task_id} not found.")
+
+def delete_task(tasks: list, task_id: int):
+    initial_length = len(tasks)
+    tasks[:] = [task for task in tasks if task['id'] != task_id]
+    
+    if len(tasks) < initial_length:
+        save_tasks(tasks)
+        print(f"\n[SUCCESS] Task ID {task_id} permanently deleted.")
+    else:
+        print(f"\n[ERROR] Task with ID {task_id} not found.")
 
 def main():
     tasks = load_tasks()
@@ -96,16 +118,21 @@ def main():
 
     while True:
         try:
-            command = input("\nCommand (add/list/search/quit) > ").strip().lower().split(' ', 1)
-            action = command[0]
+            command_parts = input("\nCommand (add/list/done/delete/search/quit) > ").strip().lower().split(' ', 1)
+            
+            if not command_parts:
+                continue
+            action=command_parts[0]
+            arguments=command_parts[1:]
             
             if action == 'quit':
                 print("\n[INFO] Application shutting down. Goodbye!")
                 break
             
             elif action == 'add':
-                if len(command) > 1 and command[1]:
-                    title = command[1].strip()
+                if arguments:
+                    # Reconstruct title from arguments
+                    title = " ".join(arguments).strip() 
                     priority_input = input("   Priority (1-5, default 3): ").strip() or '3'
                     try:
                         priority = int(priority_input)
@@ -122,9 +149,24 @@ def main():
             elif action == 'list':
                 list_tasks(tasks)
             
+            elif action == 'done':
+                if arguments and arguments[0].isdigit():
+                    task_id = int(arguments[0])
+                    mark_done(tasks, task_id)
+                else:
+                    print("[ERROR] Usage: done <Task ID>")
+
+            elif action == 'delete':
+                if arguments and arguments[0].isdigit():
+                    task_id = int(arguments[0])
+                    delete_task(tasks, task_id)
+                else:
+                    print("[ERROR] Usage: delete <Task ID>")
+
             elif action == 'search':
-                if len(command) > 1 and command[1].strip():
-                    search_tasks(tasks, command[1].strip())
+                if arguments:
+                    keyword = " ".join(arguments).strip()
+                    search_tasks(tasks, keyword)
                 else:
                     print("[ERROR] Usage: search <Keyword>")
 
@@ -133,6 +175,7 @@ def main():
 
         except Exception as e:
             print(f"[ERROR] An unexpected error occurred: {e}")
+                
 
 if __name__ == "__main__":
     main()
