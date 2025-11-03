@@ -1,0 +1,288 @@
+import json
+import os
+import sys
+import argparse
+from datetime import datetime
+from typing import List, Dict, Any, Optional
+
+TASK_FILE = 'tasks.json'
+NOTE_FILE = 'notes.json'
+
+def print_header(text: str):
+    print(f"\n--- {text.upper()} ---")
+
+def print_separator(length=75):
+    print("-" * length)
+
+def load_data(filename: str) -> List[Dict[str, Any]]:
+    if not os.path.exists(filename):
+        return []
+    try:
+        with open(filename, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        print(f"\n[Error] {filename} is corrupted. Starting with an empty list.")
+        return []
+    except IOError as e:
+        print(f"\n[Error] Could not read {filename}. {e}")
+        return []
+
+def save_data(data: List[Dict[str, Any]], filename: str):
+    try:
+        with open(filename, 'w') as f:
+            json.dump(data, f, indent=4)
+    except IOError as e:
+        print(f"\n[Error] Could not write to {filename}. {e}")
+
+def get_next_id(data: list) -> int:
+    if not data:
+        return 1
+    return max(item['id'] for item in data) + 1
+
+def validate_date_format(date_str: str) -> Optional[str]:
+    try:
+        datetime.strptime(date_str, '%Y-%m-%d')
+        return date_str
+    except ValueError:
+        return None
+
+# --- TASK MANAGEMENT FUNCTIONS ---
+
+def add_task(tasks: list, title: str, priority: int = 3, due_date: Optional[str] = None):
+    new_id = get_next_id(tasks)
+    
+    if due_date:
+        validated_date = validate_date_format(due_date)
+        if not validated_date:
+            print(f"[ERROR] Invalid date format '{due_date}'. Must be YYYY-MM-DD. Task added without due date.")
+            due_date = None
+        else:
+            due_date = validated_date
+
+    if not 1 <= priority <= 5:
+        print(f"[ERROR] Priority must be between 1 and 5. Using default 3 for task '{title}'.")
+        priority = 3
+
+    new_task = {
+        'id': new_id,
+        'title': title,
+        'status': 'TODO',
+        'priority': priority,
+        'created_at': datetime.now().isoformat(),
+        'due_date': due_date
+    }
+    tasks.append(new_task)
+    save_data(tasks, TASK_FILE)
+    due_info = f" (Due: {due_date})" if due_date else ""
+    print(f"\n[SUCCESS] Task added: ID {new_id} - '{title}' (Prio: {priority}){due_info}")
+
+def display_tasks(tasks: list, header_text: str):
+    if not tasks:
+        print(f"\n[INFO] {header_text}: No tasks found.")
+        return
+
+    print_header(header_text)
+    sorted_tasks = sorted(
+        tasks, 
+        key=lambda t: (t['priority'], t['due_date'] if t['due_date'] else 'Zzzzz')
+    )
+
+    print(f"{'ID':<4} | {'Prio':<5} | {'Due Date':<10} | {'Title':<40} | {'Status':<10} | {'Created'}")
+    print_separator(75)
+
+    for task in sorted_tasks:
+        try:
+            created_time = datetime.fromisoformat(task['created_at']).strftime('%Y-%m-%d')
+        except:
+            created_time = "N/A"
+
+        due_date_str = task.get('due_date', "N/A")
+
+        print(
+            f"{task['id']:<4} | "
+            f"{task['priority']:<5} | "
+            f"{due_date_str:<10} | "
+            f"{task['title'][:38]:<40} | "
+            f"{task['status']:<10} | "
+            f"{created_time}"
+        )
+    print_separator(75)
+
+def list_tasks(tasks: list):
+    display_tasks(tasks, "Current Tasks")
+
+def calendar_tasks(tasks: list, date_str: str):
+    validated_date = validate_date_format(date_str)
+    if not validated_date:
+        print(f"\n[ERROR] Invalid date format: '{date_str}'. Please use YYYY-MM-DD.")
+        return
+
+    filtered_tasks = [
+        task for task in tasks
+        if task.get('due_date') == validated_date
+    ]
+    
+    display_tasks(filtered_tasks, f"Tasks Due On {validated_date}")
+
+def search_tasks(tasks: list, keyword: str):
+    keyword_lower = keyword.lower()
+    results = [
+        task for task in tasks
+        if keyword_lower in task['title'].lower()
+    ]
+
+    display_tasks(results, f"Task Search Results for '{keyword}'")
+
+def mark_done(tasks: list, task_id: int):
+    for task in tasks:
+        if task['id'] == task_id:
+            if task['status'] == 'DONE':
+                print(f"\n[INFO] Task ID {task_id} is already marked DONE.")
+                return
+            task['status'] = 'DONE'
+            save_data(tasks, TASK_FILE)
+            print(f"\n[SUCCESS] Task ID {task_id} marked as DONE. Well done!")
+            return
+    print(f"\n[ERROR] Task with ID {task_id} not found.")
+
+def delete_task(tasks: list, task_id: int):
+    initial_length = len(tasks)
+    tasks[:] = [task for task in tasks if task['id'] != task_id]
+    
+    if len(tasks) < initial_length:
+        save_data(tasks, TASK_FILE)
+        print(f"\n[SUCCESS] Task ID {task_id} permanently deleted.")
+    else:
+        print(f"\n[ERROR] Task with ID {task_id} not found.")
+
+# --- NOTES MANAGEMENT (PKMS) FUNCTIONS ---
+
+def add_note(notes: list, title: str, content: str, tags: str):
+    new_id = get_next_id(notes)
+    
+    tag_list = [t.strip().lower() for t in tags.split(',')]
+    
+    new_note = {
+        'id': new_id,
+        'title': title,
+        'content': content,
+        'tags': tag_list,
+        'created_at': datetime.now().isoformat()
+    }
+    notes.append(new_note)
+    save_data(notes, NOTE_FILE)
+    print(f"\n[SUCCESS] Note added: ID {new_id} - '{title}' with tags: {', '.join(tag_list)}")
+
+def display_notes(notes: list, header_text: str):
+    if not notes:
+        print(f"\n[INFO] {header_text}: No notes found.")
+        return
+
+    print_header(header_text)
+    print(f"{'ID':<4} | {'Title':<30} | {'Tags':<25} | {'Created'}")
+    print_separator(75)
+
+    for note in notes:
+        try:
+            created_time = datetime.fromisoformat(note['created_at']).strftime('%Y-%m-%d')
+        except:
+            created_time = "N/A"
+        
+        tags_str = ", ".join(note.get('tags', []))
+        
+        print(
+            f"{note['id']:<4} | "
+            f"{note['title'][:28]:<30} | "
+            f"{tags_str[:23]:<25} | "
+            f"{created_time}"
+        )
+    print_separator(75)
+    
+    for note in notes:
+        print_header(f"Note {note['id']} - {note['title']}")
+        print(f"Content:\n{note['content']}")
+        print_separator(75)
+
+
+def search_note(notes: list, keyword: str):
+    keyword_lower = keyword.lower()
+    results = [
+        note for note in notes
+        if keyword_lower in note['title'].lower() or \
+           keyword_lower in note['content'].lower() or \
+           any(keyword_lower in tag for tag in note.get('tags', []))
+    ]
+
+    display_notes(results, f"Note Search Results for '{keyword}'")
+
+# --- MAIN CLI LOGIC ---
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="JSON-Based Task and PKMS CLI. Manage tasks in 'tasks.json' and notes in 'notes.json'.",
+        epilog="Use `python task_cli.py <command> --help` for command-specific usage."
+    )
+    
+    subparsers = parser.add_subparsers(dest="command")
+
+    # --- TASK COMMANDS ---
+    add_parser = subparsers.add_parser('add', help='Add a new task.')
+    add_parser.add_argument('title', type=str, help='The title of the task to add.')
+    add_parser.add_argument('--priority', type=int, default=3, choices=range(1, 6), metavar='[1-5]',
+                            help='Priority level (1=Highest, 5=Lowest). Default is 3.')
+    add_parser.add_argument('--due', type=str, 
+                            help='Optional due date in YYYY-MM-DD format (e.g., 2025-12-31).')
+
+    subparsers.add_parser('list', help='List all tasks, sorted by priority.')
+    
+    calendar_parser = subparsers.add_parser('calendar', help='View tasks due on a specific date.')
+    calendar_parser.add_argument('date', type=str, help='The date to check for tasks (YYYY-MM-DD).')
+
+    done_parser = subparsers.add_parser('done', help='Mark a task as DONE.')
+    done_parser.add_argument('id', type=int, help='The ID of the task to mark as done.')
+
+    delete_parser = subparsers.add_parser('delete', help='Permanently delete a task.')
+    delete_parser.add_argument('id', type=int, help='The ID of the task to delete.')
+
+    search_parser = subparsers.add_parser('search', help='Search tasks by keyword in the title.')
+    search_parser.add_argument('keyword', type=str, help='The keyword to search for in task titles.')
+    
+    # --- NOTES COMMANDS ---
+    add_note_parser = subparsers.add_parser('add_note', help='Add a new note to the PKMS.')
+    add_note_parser.add_argument('title', type=str, help='The title of the note.')
+    add_note_parser.add_argument('--content', type=str, required=True, help='The full text content of the note.')
+    add_note_parser.add_argument('--tags', type=str, default="", help='Comma-separated tags (e.g., "AI, research").')
+
+    search_note_parser = subparsers.add_parser('search_note', help='Search notes by keyword in title, content, or tags.')
+    search_note_parser.add_argument('keyword', type=str, help='The keyword to search for.')
+    
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
+    args = parser.parse_args()
+    
+    if args.command in ['add', 'list', 'calendar', 'done', 'delete', 'search']:
+        tasks = load_data(TASK_FILE)
+        if args.command == 'add':
+            add_task(tasks, args.title, args.priority, args.due)
+        elif args.command == 'list':
+            list_tasks(tasks)
+        elif args.command == 'calendar':
+            calendar_tasks(tasks, args.date)
+        elif args.command == 'done':
+            mark_done(tasks, args.id)
+        elif args.command == 'delete':
+            delete_task(tasks, args.id)
+        elif args.command == 'search':
+            search_tasks(tasks, args.keyword)
+            
+    elif args.command in ['add_note', 'search_note']:
+        notes = load_data(NOTE_FILE)
+        if args.command == 'add_note':
+            add_note(notes, args.title, args.content, args.tags)
+        elif args.command == 'search_note':
+            search_note(notes, args.keyword)
+
+if __name__ == "__main__":
+    main()
