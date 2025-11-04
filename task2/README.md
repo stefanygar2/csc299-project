@@ -5,6 +5,10 @@ ADD a search note
 # HOW TO USE Examples
 python task2.py add "Finish the project review" --priority 1 --due 2025-11-15
 python task2.py list
+
+
+
+
 python task2.py done 1
 python task2.py add_note "Python Tips" --content "Use argparse for clean CLIs" --tags "Python,CLI"
 python task2.py search_note "argparse"
