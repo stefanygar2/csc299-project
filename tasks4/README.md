@@ -3,6 +3,8 @@ cd tasks4/
 
 uv run python __main__.py
 
+# Disclamer 
+I dont know if I understood the prompt for tasks4 but it works and used openAI
 
 # DISCUSSION HAD 
 Create a robust Python class that enables a student to manage separate school and work schedules, supporting adding, removing, and displaying schedule items for both. Ensure clarity, high code quality (function structure, comments, variable names), and include a loop (such as an interactive menu or repeated processing). The implementation must be readily testable (as with uv test) and not require extraneous user input during testing.
