@@ -4,5 +4,6 @@ add a loop to your code so that it can summarize multiple paragraph-length descr
 add at least 2 sample paragraph-length descriptions to your code so that running uv run tasks4 will summarize both descriptions and then print the summaries
 
 # HOW TO RUN 
-cd tasks4
+cd tasks4/
+
 uv run python __main__.py
