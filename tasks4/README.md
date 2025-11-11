@@ -5,4 +5,4 @@ add at least 2 sample paragraph-length descriptions to your code so that running
 
 # HOW TO RUN 
 cd tasks4
-
+uv run python __main__.py
