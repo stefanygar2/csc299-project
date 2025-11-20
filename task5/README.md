@@ -11,7 +11,7 @@ source /path/to/your/venv/bin/activate
 2. install 
 (venv) $ pip install pytest pytest-mock
 Run the task manager CLI: py -m src.tasks_manager
-''' 
+```
 task5/
 ├── src/
 │   └── tasks_manager.py       
@@ -31,4 +31,4 @@ task5/
 ├── .gitignore
 ├── pyproject.toml
 └── README.md
-'''
+```
