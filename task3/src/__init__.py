@@ -1,0 +1,290 @@
+import argparse
+import json
+import os
+import datetime
+
+# --- Configuration ---
+TASK_FILE = 'tasks.json'
+NOTE_FILE = 'notes.json'
+
+# --- Utility Functions ---
+
+def load_data(filename):
+    if not os.path.exists(filename) or os.stat(filename).st_size == 0:
+        return []
+    try:
+        with open(filename, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        print(f"[ERROR] Could not decode data from {filename}. File might be corrupted.")
+        return []
+
+def save_data(filename, data):
+    with open(filename, 'w') as f:
+        json.dump(data, f, indent=4)
+
+def get_next_id(data):
+    return max([item.get('id', 0) for item in data] or [0]) + 1
+
+# --- Task Management Logic ---
+
+def add_task(title, priority, due_date):
+    tasks = load_data(TASK_FILE)
+    new_id = get_next_id(tasks)
+    
+    # Validate priority
+    try:
+        priority = int(priority)
+        if not 1 <= priority <= 5:
+            priority = 3
+    except ValueError:
+        priority = 3
+
+    # Validate due_date format
+    if due_date:
+        try:
+            # Check if the date is valid
+            datetime.datetime.strptime(due_date, '%Y-%m-%d')
+        except ValueError:
+            print("[WARNING] Invalid due date format. Please use YYYY-MM-DD. Due date discarded.")
+            due_date = None
+            
+    new_task = {
+        'id': new_id,
+        'title': title,
+        'priority': priority,
+        'status': 'TODO',
+        'due_date': due_date,
+        'created_at': datetime.datetime.now().strftime('%Y-%m-%d')
+    }
+    tasks.append(new_task)
+    save_data(TASK_FILE, tasks)
+    print(f"[SUCCESS] Task added: ID {new_id} - '{title}'")
+
+def print_tasks_table(tasks):
+    if not tasks:
+        print("\n[INFO] No tasks found.")
+        return
+
+    # Defensive sorting: sort by Priority (ascending), then by Due Date (ascending).
+    # Corrected sorting key: Empty due dates should sort last.
+    tasks.sort(key=lambda t: (
+        t.get('priority', 9),
+        t.get('due_date', '9999-12-31')
+    ))
+
+    print("\n--- CURRENT TASKS ---")
+    print(f"{'ID':<4} | {'Prio':<4} | {'Due Date':<10} | {'Title':<40} | {'Status':<10}")
+    print("-" * 75)
+    
+    for task in tasks:
+        task_id = task.get('id', 'N/A')
+        priority = task.get('priority', 'N/A')
+        due_date = task.get('due_date', 'N/A')
+        title = task.get('title', 'N/A')
+        status = task.get('status', 'N/A')
+        print(f"{task_id:<4} | {priority:<4} | {due_date:<10} | {title:<40} | {status:<10}")
+    print("-" * 75)
+
+def list_tasks():
+    tasks = load_data(TASK_FILE)
+    print_tasks_table(tasks)
+
+def mark_done(task_id):
+    tasks = load_data(TASK_FILE)
+    # Ensure ID is an integer
+    try:
+        task_id = int(task_id)
+    except ValueError:
+        print("[ERROR] Task ID must be an integer.")
+        return
+        
+    for task in tasks:
+        if task.get('id') == task_id:
+            task['status'] = 'DONE'
+            save_data(TASK_FILE, tasks)
+            print(f"[SUCCESS] Task ID {task_id} marked as DONE.")
+            return
+    print(f"[ERROR] Task with ID {task_id} not found.")
+
+def delete_task(task_id):
+    tasks = load_data(TASK_FILE)
+    # Ensure ID is an integer
+    try:
+        task_id = int(task_id)
+    except ValueError:
+        print("[ERROR] Task ID must be an integer.")
+        return
+        
+    tasks_before = len(tasks)
+    tasks = [task for task in tasks if task.get('id') != task_id]
+    
+    if len(tasks) < tasks_before:
+        save_data(TASK_FILE, tasks)
+        print(f"[SUCCESS] Task ID {task_id} permanently deleted.")
+    else:
+        print(f"[ERROR] Task with ID {task_id} not found.")
+
+def search_tasks(keyword):
+    tasks = load_data(TASK_FILE)
+    keyword = keyword.lower()
+    results = [
+        task for task in tasks 
+        if keyword in task.get('title', '').lower()
+    ]
+    if results:
+        print(f"\n--- SEARCH RESULTS for Tasks matching '{keyword}' ---")
+        print_tasks_table(results)
+    else:
+        print(f"[INFO] Search: No tasks matching '{keyword}' found.")
+
+def calendar_view(date_str):
+    tasks = load_data(TASK_FILE)
+    try:
+        # Validate input date format
+        datetime.datetime.strptime(date_str, '%Y-%m-%d')
+    except ValueError:
+        print("[ERROR] Invalid date format. Please use YYYY-MM-DD.")
+        return
+
+    results = [
+        task for task in tasks 
+        if task.get('due_date') == date_str
+    ]
+
+    if results:
+        print(f"\n--- CALENDAR: Tasks due on {date_str} ---")
+        print_tasks_table(results)
+    else:
+        print(f"[INFO] No tasks due on {date_str}.")
+
+# --- PKMS (Notes) Logic ---
+
+def add_note(title, content, tags):
+    notes = load_data(NOTE_FILE)
+    new_id = get_next_id(notes)
+    
+    new_note = {
+        'id': new_id,
+        'title': title,
+        'content': content,
+        'tags': [t.strip() for t in tags.split(',')] if tags else [],
+        'created_at': datetime.datetime.now().strftime('%Y-%m-%d')
+    }
+    notes.append(new_note)
+    save_data(NOTE_FILE, notes)
+    print(f"[SUCCESS] Note added: ID {new_id} - '{title}'")
+
+def view_note(note_id):
+    notes = load_data(NOTE_FILE)
+    try:
+        note_id = int(note_id)
+    except ValueError:
+        print("[ERROR] Note ID must be an integer.")
+        return
+        
+    for note in notes:
+        if note.get('id') == note_id:
+            tags_str = ", ".join(note.get('tags', []))
+            print(f"\n--- NOTE ID {note_id}: {note.get('title')} ---")
+            print(f"Created: {note.get('created_at')}")
+            print(f"Tags: {tags_str}\n")
+            print(note.get('content'))
+            print("-" * 40)
+            return
+            
+    print(f"[ERROR] Note with ID {note_id} not found.")
+
+def search_note(keyword):
+    notes = load_data(NOTE_FILE)
+    keyword = keyword.lower()
+    results = []
+
+    for note in notes:
+        # Search title, content, and tags
+        if keyword in note.get('title', '').lower() or \
+           keyword in note.get('content', '').lower() or \
+           any(keyword in tag.lower() for tag in note.get('tags', [])):
+            results.append(note)
+
+    if results:
+        print(f"\n--- SEARCH RESULTS for Notes matching '{keyword}' ---")
+        for note in results:
+            tags_str = ", ".join(note.get('tags', []))
+            print(f"ID {note.get('id')}: {note.get('title')} (Created: {note.get('created_at')})")
+            print(f"  Content: {note.get('content', '')[:70]}...")
+            print(f"  Tags: {tags_str}")
+            print("-" * 30)
+    else:
+        print(f"[INFO] Search: No notes matching '{keyword}' found.")
+
+
+# --- Command Line Interface Setup ---
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="A command-line Task and PKMS manager using JSON files.",
+        epilog="Example: uv run task2.py add 'Draft final report' --priority 1" # Changed example for uv context
+    )
+    # The 'required=True' ensures a command is always passed
+    subparsers = parser.add_subparsers(dest='command', required=True)
+
+    # --- Task Management Subparsers ---
+
+    # ADD Command
+    parser_add = subparsers.add_parser('add', help='Add a new task.')
+    parser_add.add_argument('title', type=str, help='Title of the task (must be in quotes if multiple words).')
+    parser_add.add_argument('--priority', type=int, default=3, choices=range(1, 6), metavar='[1-5]', help='Priority level (1=highest, 5=lowest). Defaults to 3.')
+    parser_add.add_argument('--due', type=str, dest='due_date', help='Optional due date (format: YYYY-MM-DD).')
+    parser_add.set_defaults(func=lambda args: add_task(args.title, args.priority, args.due_date))
+
+    # LIST Command
+    parser_list = subparsers.add_parser('list', help='List all tasks, sorted by priority and due date.')
+    parser_list.set_defaults(func=lambda args: list_tasks())
+
+    # DONE Command
+    parser_done = subparsers.add_parser('done', help='Mark a task as DONE.')
+    parser_done.add_argument('id', type=int, help='ID of the task to mark done.')
+    parser_done.set_defaults(func=lambda args: mark_done(args.id))
+    
+    # DELETE Command
+    parser_delete = subparsers.add_parser('delete', help='Permanently delete a task.')
+    parser_delete.add_argument('id', type=int, help='ID of the task to delete.')
+    parser_delete.set_defaults(func=lambda args: delete_task(args.id))
+
+    # SEARCH Command
+    parser_search = subparsers.add_parser('search', help='Search tasks by keyword in the title.')
+    parser_search.add_argument('keyword', type=str, help='Keyword to search for.')
+    parser_search.set_defaults(func=lambda args: search_tasks(args.keyword))
+
+    # CALENDAR Command
+    parser_calendar = subparsers.add_parser('calendar', help='List tasks due on a specific date.')
+    parser_calendar.add_argument('date', type=str, help='Date to filter tasks (format: YYYY-MM-DD).')
+    parser_calendar.set_defaults(func=lambda args: calendar_view(args.date))
+
+    # --- PKMS (Notes) Subparsers ---
+
+    # ADD_NOTE Command
+    parser_add_note = subparsers.add_parser('add_note', help='Add a new knowledge note.')
+    parser_add_note.add_argument('title', type=str, help='Title of the note.')
+    parser_add_note.add_argument('--content', type=str, required=True, help='Content/body of the note.')
+    parser_add_note.add_argument('--tags', type=str, default='', help='Comma-separated tags (e.g., Python,OOP).')
+    parser_add_note.set_defaults(func=lambda args: add_note(args.title, args.content, args.tags))
+
+    # VIEW_NOTE Command (Added for completeness)
+    parser_view_note = subparsers.add_parser('view_note', help='View the full content of a note by ID.')
+    parser_view_note.add_argument('id', type=int, help='ID of the note to view.')
+    parser_view_note.set_defaults(func=lambda args: view_note(args.id))
+
+    # SEARCH_NOTE Command
+    parser_search_note = subparsers.add_parser('search_note', help='Search notes by keyword in title, content, or tags.')
+    parser_search_note.add_argument('keyword', type=str, help='Keyword to search for.')
+    parser_search_note.set_defaults(func=lambda args: search_note(args.keyword))
+    
+    # Parse arguments and run the function assigned to the command
+    args = parser.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
