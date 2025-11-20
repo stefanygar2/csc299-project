@@ -1,0 +1,36 @@
+# TaskManager Specification
+
+This document specifies the requirements, features, and design goals for TaskManager.
+
+## Purpose
+TaskManager is designed to help users organize, track, and manage assignments or tasks for courses, projects, or personal productivity.
+
+## Requirements
+- Store assignments with title, course, due date, priority (1–5), and notes
+- Persist all assignments to a JSON file (`assignments.json`)
+- Allow adding, completing, deleting, and linking assignments
+- Prevent self-linking and duplicate links
+- List assignments sorted by due date
+- Retrieve linked assignment titles and IDs
+- Validate priority and due date format
+- Provide clear error messages for invalid operations
+- Auto-save changes after every operation
+
+## Features
+- Assignment management (add, complete, delete)
+- Link assignments for dependencies or related tasks
+- Markdown notes support for assignments
+- Data integrity and error handling
+- Unit tests for all major functions
+- Export/import assignments (optional)
+- Integration with other tools or agents (optional)
+
+## Design Goals
+- Simple, intuitive interface for users
+- Reliable data storage and recovery
+- Extensible for future features and integrations
+- Well-documented code and usage instructions
+
+---
+
+_Expand this specification as needed for your workflow or project phase._
