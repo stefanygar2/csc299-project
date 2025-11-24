@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "task6"
+version = "0.1.0"
+description = "A portable PKMS and Task Manager with AI integration."
+authors = [
+{name = "Gemini AI", email = "ai@google.com"}
+]
+license = "MIT"
+readme = "README.md"
+dependencies = [
+# Using a robust mock for OpenAI here, but listing actual dependencies for real use
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.pytest.ini_options]
+pythonpath = ["task6/src"]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = ["task6/tests"]
+
+[tool.uv.scripts]
+
+Defines the entry point for 'uv run task6'
+
+task6 = "task6.src:main"
+
+[tool.uv]
+
+Required dependencies for the project
+
+dependencies = [
+"pytest>=8.0.0",
+"pydantic>=2.0.0",
+"openai" # Included for real implementation, though mocked here
+]
