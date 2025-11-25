@@ -23,82 +23,59 @@ The project uses uv for dependency management. Ensure you are in the directory c
 
 Navigate to the project root:
 
-```` cd finalpro ````
+``` 
+cd finalpro
+```
 
 
 Create the virtual environment and install dependencies:
-
+```
 uv venv
 uv pip install -e .
+```
 
-
-▶️ Execution
+# Execution
 
 1. Run the CLI Application
 
 To start the interactive menu, you must use the python -m command, which correctly executes the __main__.py file within the task6.src package.
 
 # This is the most reliable way to execute the application
+```
 source .venv/bin/activate  # Optional, but recommended
 python -m task6.src
+```
 
 
 2. Run the Unit Tests
 
 This command executes the tests in task6/tests/test_manager.py.
-
+```
 uv run pytest
+```
 
-
-⚙️ Key Features
+Key Features
 
 Data Management
-
 All data is stored in the .data/ directory using simple JSON files: knowledge.json, tasks.json, and schedule.json.
 
 CLI Menu Options
 
 The CLI allows for direct interaction with all data types:
 
-Option
 
-Action
 
-Data Type
+1 : Add Knowledge Entry :Stores notes, tags, and content.
 
-1
+2 :Add Task :Stores tasks with due dates and optional links to knowledge entries.
 
-Add Knowledge Entry
+3 : List Pending Tasks :Displays tasks, sorted by AI-assigned priority.
 
-Stores notes, tags, and content.
+4 : Search Knowledge (PKM) :Performs keyword searches across entry titles and content.
 
-2
+6 :Add Work Schedule :NEW: Records structured schedule commitments (Day, Time, Location).
 
-Add Task
-
-Stores tasks with due dates and optional links to knowledge entries.
-
-3
-
-List Pending Tasks
-
-Displays tasks, sorted by AI-assigned priority.
-
-4
-
-Search Knowledge (PKM)
-
-Performs keyword searches across entry titles and content.
-
-6
-
-Add Work Schedule
-
-NEW: Records structured schedule commitments (Day, Time, Location).
-
-7
-
-Save & Exit
+7 :Save & Exit
 
 Saves all current knowledge, tasks, and schedules to JSON.
 
